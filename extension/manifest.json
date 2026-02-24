@@ -11,7 +11,8 @@
   "host_permissions": [
     "https://*.instructure.com/*",
     "https://*.canvas.net/*",
-    "https://*.canvaslms.com/*"
+    "https://*.canvaslms.com/*",
+    "https://bcourses.berkeley.edu/*"
   ],
   "action": {
     "default_popup": "popup/popup.html",
@@ -30,7 +31,8 @@
       "matches": [
         "https://*.instructure.com/*",
         "https://*.canvas.net/*",
-        "https://*.canvaslms.com/*"
+        "https://*.canvaslms.com/*",
+        "https://bcourses.berkeley.edu/*"
       ],
       "js": [
         "content/scanner.js",

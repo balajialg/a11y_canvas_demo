@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Canvas A11y Remediator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      width: 300px;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 14px;
+      color: #1a1a1a;
+      background: #fff;
+    }
+
+    /* Header */
+    .popup-header {
+      background: #1a73e8;
+      color: #fff;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .popup-header h1 {
+      font-size: 16px;
+      font-weight: 700;
+      flex: 1;
+    }
+    .popup-header .version {
+      font-size: 11px;
+      opacity: 0.8;
+    }
+
+    /* Status badge */
+    #status-area {
+      padding: 12px 16px;
+      border-bottom: 1px solid #e0e0e0;
+      background: #f8f9fa;
+    }
+    #status-text {
+      font-size: 13px;
+      color: #555;
+    }
+    #status-text.active { color: #1b5e20; font-weight: 600; }
+    #status-text.error  { color: #b71c1c; }
+
+    /* Summary badges */
+    #summary-area {
+      padding: 10px 16px;
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      border-bottom: 1px solid #e0e0e0;
+      min-height: 44px;
+      align-items: center;
+    }
+    .badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 10px;
+      white-space: nowrap;
+    }
+    .badge--total    { background: #1a73e8; color: #fff; }
+    .badge--critical { background: #b71c1c; color: #fff; }
+    .badge--serious  { background: #e65100; color: #fff; }
+    .badge--moderate { background: #f9a825; color: #1a1a1a; }
+    .badge--minor    { background: #37474f; color: #fff; }
+    .badge--ok       { background: #388e3c; color: #fff; }
+
+    /* Action buttons */
+    .popup-actions {
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .action-btn {
+      width: 100%;
+      padding: 9px 14px;
+      border-radius: 5px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: background 0.15s, opacity 0.15s;
+      text-align: center;
+    }
+    .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .action-btn--primary {
+      background: #1a73e8;
+      color: #fff;
+    }
+    .action-btn--primary:hover:not(:disabled),
+    .action-btn--primary:focus:not(:disabled) {
+      background: #1557b0;
+      outline: 2px solid #1a73e8;
+      outline-offset: 2px;
+    }
+
+    .action-btn--secondary {
+      background: #fff;
+      color: #1a73e8;
+      border: 1.5px solid #1a73e8;
+    }
+    .action-btn--secondary:hover:not(:disabled),
+    .action-btn--secondary:focus:not(:disabled) {
+      background: #e8f0fd;
+      outline: 2px solid #1a73e8;
+      outline-offset: 2px;
+    }
+
+    /* Not-canvas warning */
+    #not-canvas-warning {
+      display: none;
+      padding: 14px 16px;
+      background: #fff8e1;
+      border-left: 4px solid #f9a825;
+      margin: 10px 16px;
+      border-radius: 0 4px 4px 0;
+      font-size: 12px;
+      color: #5d4037;
+      line-height: 1.5;
+    }
+
+    /* Footer */
+    .popup-footer {
+      padding: 8px 16px;
+      border-top: 1px solid #e0e0e0;
+      font-size: 11px;
+      color: #888;
+      text-align: center;
+    }
+    .popup-footer a { color: #1a73e8; text-decoration: none; }
+    .popup-footer a:hover { text-decoration: underline; }
+
+    /* Focus styles */
+    *:focus-visible {
+      outline: 2px solid #1a73e8;
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body>
+  <header class="popup-header" role="banner">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" stroke="#fff" stroke-width="2"/>
+      <text x="12" y="17" font-size="13" font-family="Arial,sans-serif" font-weight="bold"
+            fill="#fff" text-anchor="middle">A</text>
+    </svg>
+    <h1>Canvas A11y Remediator</h1>
+    <span class="version">v1.0</span>
+  </header>
+
+  <main>
+    <section id="status-area" aria-label="Extension status">
+      <p id="status-text">Checking page…</p>
+    </section>
+
+    <div id="not-canvas-warning" role="alert" aria-live="polite">
+      ⚠️ This page doesn't appear to be a Canvas LMS page. The extension works on
+      <strong>*.instructure.com</strong>, <strong>*.canvas.net</strong>, and
+      <strong>*.canvaslms.com</strong> domains.
+    </div>
+
+    <section id="summary-area" aria-label="Last scan results" aria-live="polite">
+      <span id="no-scan-yet" class="badge badge--total">No scan yet</span>
+    </section>
+
+    <section class="popup-actions" aria-label="Actions">
+      <button id="btn-scan"   class="action-btn action-btn--primary"   aria-label="Open panel and scan page now">
+        🔍 Scan Page Now
+      </button>
+      <button id="btn-toggle" class="action-btn action-btn--secondary"  aria-label="Toggle accessibility panel">
+        ☰ Toggle Panel
+      </button>
+    </section>
+  </main>
+
+  <footer class="popup-footer" role="contentinfo">
+    WCAG 2.1 AA &bull;
+    <a href="https://www.w3.org/WAI/WCAG21/quickref/" target="_blank" rel="noopener noreferrer">
+      Quick Reference
+    </a>
+  </footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>

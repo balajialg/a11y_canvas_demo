@@ -3,7 +3,7 @@
  * Uses Jest + jsdom
  */
 
-// Stub CSS.escape for jsdom
+// Stub CSS.escape for jsdom (simplified – the real browser API handles all edge cases)
 if (!global.CSS) {
   global.CSS = { escape: s => s.replace(/[^a-zA-Z0-9_-]/g, c => `\\${c}`) };
 }

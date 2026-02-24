@@ -234,9 +234,14 @@ function handleLocateClick(e) {
   }
 
   // Set focus on the element for keyboard accessibility
-  if (!el.getAttribute('tabindex') && !el.matches('a, button, input, select, textarea, [tabindex]')) {
+  if (!el.matches('a[href], button, input, select, textarea, [tabindex]')) {
     el.setAttribute('tabindex', '-1');
     el.setAttribute('data-a11y-temp-tabindex', 'true');
+    el.addEventListener('blur', function cleanupTabindex() {
+      el.removeAttribute('tabindex');
+      el.removeAttribute('data-a11y-temp-tabindex');
+      el.removeEventListener('blur', cleanupTabindex);
+    });
   }
   el.focus({ preventScroll: true });
 }

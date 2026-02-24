@@ -20,6 +20,7 @@ const {
   contrastRatio,
   parseColor,
   isAmbiguousLinkText,
+  getEvidenceSnippet,
   SEVERITY,
   WCAG,
 } = require('../content/scanner');
@@ -553,5 +554,108 @@ describe('exports', () => {
 
   test('WCAG has CAPTIONS_PRERECORDED entry', () => {
     expect(WCAG.CAPTIONS_PRERECORDED.id).toBe('1.2.2');
+  });
+});
+
+/* -------------------------------------------------------------------------
+ * getEvidenceSnippet
+ * ---------------------------------------------------------------------- */
+describe('getEvidenceSnippet', () => {
+  test('returns outerHTML for a simple element', () => {
+    const el = document.createElement('img');
+    el.setAttribute('src', 'photo.jpg');
+    const snippet = getEvidenceSnippet(el);
+    expect(snippet).toContain('<img');
+    expect(snippet).toContain('src="photo.jpg"');
+  });
+
+  test('truncates long HTML to maxLen', () => {
+    const el = document.createElement('div');
+    el.setAttribute('data-long', 'x'.repeat(200));
+    const snippet = getEvidenceSnippet(el, 50);
+    expect(snippet.length).toBeLessThanOrEqual(51); // 50 + '…'
+    expect(snippet).toMatch(/…$/);
+  });
+
+  test('returns empty string for null element', () => {
+    expect(getEvidenceSnippet(null)).toBe('');
+  });
+});
+
+/* -------------------------------------------------------------------------
+ * Evidence field on issues
+ * ---------------------------------------------------------------------- */
+describe('evidence field', () => {
+  test('checkImages issues include evidence', () => {
+    const root = makeRoot('<img src="photo.jpg">');
+    const issues = checkImages(root);
+    expect(issues[0].evidence).toBeDefined();
+    expect(issues[0].evidence).toContain('<img');
+  });
+
+  test('checkHeadings issues include evidence', () => {
+    const root = makeRoot('<h2></h2>');
+    const issues = checkHeadings(root);
+    const empty = issues.find(i => i.ruleId === 'heading-empty');
+    expect(empty.evidence).toBeDefined();
+    expect(empty.evidence).toContain('<h2');
+  });
+
+  test('checkLinks issues include evidence', () => {
+    const root = makeRoot('<a href="/page"></a>');
+    const issues = checkLinks(root);
+    expect(issues[0].evidence).toBeDefined();
+    expect(issues[0].evidence).toContain('<a');
+  });
+
+  test('checkForms issues include evidence', () => {
+    const root = makeRoot('<input type="text" id="name">');
+    const issues = checkForms(root);
+    const labelIssue = issues.find(i => i.ruleId === 'input-label');
+    expect(labelIssue.evidence).toBeDefined();
+    expect(labelIssue.evidence).toContain('<input');
+  });
+
+  test('checkLanguage issues include evidence', () => {
+    document.documentElement.removeAttribute('lang');
+    const issues = checkLanguage(document.body);
+    const langIssue = issues.find(i => i.ruleId === 'html-lang');
+    expect(langIssue.evidence).toBeDefined();
+    expect(langIssue.evidence).toContain('lang');
+  });
+
+  test('checkPageTitle issues include evidence', () => {
+    document.title = '';
+    const issues = checkPageTitle();
+    const titleIssue = issues.find(i => i.ruleId === 'page-title');
+    expect(titleIssue.evidence).toBeDefined();
+    expect(titleIssue.evidence).toContain('title');
+  });
+
+  test('checkTabindex issues include evidence', () => {
+    const root = makeRoot('<button tabindex="3">Click me</button>');
+    const issues = checkTabindex(root);
+    expect(issues[0].evidence).toBeDefined();
+    expect(issues[0].evidence).toContain('tabindex');
+  });
+
+  test('checkAria issues include evidence for invalid role', () => {
+    const root = makeRoot('<div role="banana">content</div>');
+    const issues = checkAria(root);
+    const roleIssue = issues.find(i => i.ruleId === 'aria-role-invalid');
+    expect(roleIssue.evidence).toBeDefined();
+    expect(roleIssue.evidence).toContain('banana');
+  });
+
+  test('scanPage issues all have evidence field', () => {
+    const root = makeRoot(`
+      <img src="photo.png">
+      <a href="/x">click here</a>
+      <button></button>
+    `);
+    const { issues } = scanPage(root);
+    issues.forEach(issue => {
+      expect(issue).toHaveProperty('evidence');
+    });
   });
 });

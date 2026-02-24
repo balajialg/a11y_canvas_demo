@@ -104,6 +104,10 @@ function buildIssueCard(issue, index) {
     ? `<button class="a11y-fix-btn"    data-issue-index="${index}" aria-label="Apply fix for: ${escapeHtml(issue.title)}">Fix It</button>`
     : '';
 
+  const evidenceHtml = issue.evidence
+    ? `<div class="a11y-issue-evidence"><strong>Evidence:</strong> <code>${escapeHtml(issue.evidence)}</code></div>`
+    : '';
+
   return `
 <div class="a11y-issue-card" data-severity="${sev}" data-issue-index="${index}" role="article">
   <div class="a11y-issue-header" role="button" tabindex="0"
@@ -121,6 +125,7 @@ function buildIssueCard(issue, index) {
       </a>
     </p>
     <p class="a11y-issue-description">${escapeHtml(issue.description)}</p>
+    ${evidenceHtml}
     <div class="a11y-issue-remediation">
       <strong>How to fix:</strong> ${escapeHtml(issue.remediation)}
     </div>
@@ -207,15 +212,38 @@ function handleLocateClick(e) {
   const issue = _lastScanResult && _lastScanResult.issues[idx];
   if (!issue) return;
 
-  // Try to find the live element
-  const el = (issue.id && document.querySelector(`[data-a11y-id="${issue.id}"]`))
-    || issue.element;
+  // Try to find the live element using CSS-escaped ID selector
+  const escapedId = issue.id && (typeof cssEscape === 'function'
+    ? cssEscape(issue.id)
+    : issue.id);
+  let el = escapedId
+    ? document.querySelector(`[data-a11y-id="${escapedId}"]`)
+    : null;
 
-  if (el && typeof highlightElement === 'function') {
+  // Fall back to stored element reference if still in the DOM
+  if (!el && issue.element && document.body.contains(issue.element)) {
+    el = issue.element;
+  }
+
+  if (!el) return;
+
+  if (typeof highlightElement === 'function') {
     highlightElement(el);
-  } else if (el) {
+  } else {
     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
+
+  // Set focus on the element for keyboard accessibility
+  if (!el.matches('a[href], button, input, select, textarea, [tabindex]')) {
+    el.setAttribute('tabindex', '-1');
+    el.setAttribute('data-a11y-temp-tabindex', 'true');
+    el.addEventListener('blur', function cleanupTabindex() {
+      el.removeAttribute('tabindex');
+      el.removeAttribute('data-a11y-temp-tabindex');
+      el.removeEventListener('blur', cleanupTabindex);
+    });
+  }
+  el.focus({ preventScroll: true });
 }
 
 /**
@@ -398,6 +426,7 @@ function exportReport() {
       wcag:        issue.wcag,
       canAutoFix:  issue.canAutoFix,
       elementId:   issue.id,
+      evidence:    issue.evidence || '',
     })),
   };
 
@@ -452,4 +481,16 @@ if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
   chrome.storage.local.get(['panelVisible'], result => {
     if (result.panelVisible) showPanel();
   });
+}
+
+/* -------------------------------------------------------------------------
+ * Export for tests
+ * ---------------------------------------------------------------------- */
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    buildIssueCard,
+    escapeHtml,
+    handleLocateClick,
+    severityLabel,
+  };
 }

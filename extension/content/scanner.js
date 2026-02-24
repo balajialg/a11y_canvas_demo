@@ -178,6 +178,21 @@ function cssEscape(str) {
 }
 
 /**
+ * Return a short HTML evidence snippet for an element (opening tag only,
+ * truncated to a maximum length).
+ */
+function getEvidenceSnippet(el, maxLen) {
+  maxLen = maxLen || 120;
+  if (!el) return '';
+  try {
+    const html = el.outerHTML || '';
+    return html.length > maxLen ? html.substring(0, maxLen) + '…' : html;
+  } catch (_) {
+    return '';
+  }
+}
+
+/**
  * True when the text is a known non-descriptive (ambiguous) link phrase.
  */
 const AMBIGUOUS_LINK_PATTERNS = /^(click here|here|read more|more|learn more|link|this link|details|info|information|download|view|see more|go|continue)\.?$/i;
@@ -216,6 +231,7 @@ function checkImages(root) {
         remediation: 'Add a descriptive alt attribute. If the image is decorative, use alt="".',
         canAutoFix:  true,
         autoFixType: 'add-alt-text',
+        evidence:    getEvidenceSnippet(img),
       });
     } else if (altText.trim() === '' && !img.closest('[aria-hidden="true"]')) {
       // alt="" is valid for decorative images – skip
@@ -231,6 +247,7 @@ function checkImages(root) {
         remediation: 'Replace the file name with a meaningful description of the image content.',
         canAutoFix:  true,
         autoFixType: 'add-alt-text',
+        evidence:    getEvidenceSnippet(img),
       });
     }
   });
@@ -259,6 +276,7 @@ function checkVideos(root) {
         description: 'This video element has no caption or subtitle track.',
         remediation: 'Add a <track kind="captions"> element pointing to a VTT file, or use a captioned video host (YouTube auto-captions reviewed for accuracy).',
         canAutoFix:  false,
+        evidence:    getEvidenceSnippet(video),
       });
     }
   });
@@ -278,6 +296,7 @@ function checkVideos(root) {
         description: `An embedded video from ${new URL(iframe.src || 'https://unknown').hostname} cannot be automatically verified for captions.`,
         remediation: 'Ensure the video has accurate closed captions enabled. For YouTube, confirm captions are turned on. For Kaltura, attach a caption file.',
         canAutoFix:  false,
+        evidence:    getEvidenceSnippet(iframe),
       });
     }
 
@@ -295,6 +314,7 @@ function checkVideos(root) {
         remediation: 'Add a descriptive title attribute to the iframe.',
         canAutoFix:  true,
         autoFixType: 'add-iframe-title',
+        evidence:    getEvidenceSnippet(iframe),
       });
     }
   });
@@ -323,6 +343,7 @@ function checkHeadings(root) {
         description: 'This heading element is empty. Screen readers may announce it confusingly.',
         remediation: 'Either add meaningful text or remove the heading element.',
         canAutoFix:  false,
+        evidence:    getEvidenceSnippet(h),
       });
     }
   });
@@ -344,6 +365,7 @@ function checkHeadings(root) {
         canAutoFix:  true,
         autoFixType: 'fix-heading-level',
         meta:        { currentLevel: level, suggestedLevel: prevLevel + 1 },
+        evidence:    getEvidenceSnippet(h),
       });
     }
     prevLevel = level;
@@ -375,6 +397,7 @@ function checkLinks(root) {
         remediation: 'Add descriptive text content or an aria-label that describes the link destination.',
         canAutoFix:  true,
         autoFixType: 'add-aria-label',
+        evidence:    getEvidenceSnippet(a),
       });
     } else if (isAmbiguousLinkText(effectiveName) && !ariaName) {
       issues.push({
@@ -388,6 +411,7 @@ function checkLinks(root) {
         remediation: 'Use descriptive link text or add an aria-label that includes the destination name.',
         canAutoFix:  true,
         autoFixType: 'add-aria-label',
+        evidence:    getEvidenceSnippet(a),
       });
     }
   });
@@ -419,6 +443,7 @@ function checkForms(root) {
         remediation: 'Add a <label for="..."> element, an aria-label, or an aria-labelledby referencing a visible label.',
         canAutoFix:  true,
         autoFixType: 'add-aria-label',
+        evidence:    getEvidenceSnippet(input),
       });
     }
   });
@@ -441,6 +466,7 @@ function checkForms(root) {
         remediation: 'Add visible text or an aria-label that describes the button\'s action.',
         canAutoFix:  true,
         autoFixType: 'add-aria-label',
+        evidence:    getEvidenceSnippet(btn),
       });
     }
   });
@@ -476,6 +502,7 @@ function checkTables(root) {
         description: 'This table has no <th> elements or scope attributes. Screen reader users cannot relate data cells to their headers.',
         remediation: 'Add <th> elements to header rows/columns and use scope="col" or scope="row" attributes.',
         canAutoFix:  false,
+        evidence:    getEvidenceSnippet(table),
       });
     }
 
@@ -492,6 +519,7 @@ function checkTables(root) {
           description: 'This table has no <caption> element describing its purpose.',
           remediation: 'Add a <caption> element as the first child of the table.',
           canAutoFix:  false,
+          evidence:    getEvidenceSnippet(table),
         });
       }
     }
@@ -552,6 +580,7 @@ function checkColorContrast(root) {
         remediation: `Increase the contrast between the foreground color rgb(${fg.r},${fg.g},${fg.b}) and background rgb(${bg.r},${bg.g},${bg.b}) to at least ${required}:1.`,
         canAutoFix:  false,
         meta:        { ratio: ratio.toFixed(2), required, fg, bg },
+        evidence:    `Foreground: rgb(${fg.r},${fg.g},${fg.b}); Background: rgb(${bg.r},${bg.g},${bg.b}); Contrast: ${ratio.toFixed(2)}:1 (requires ${required}:1)`,
       });
     }
   });
@@ -579,6 +608,7 @@ function checkLanguage(root) {
       remediation: 'Add a lang attribute to the <html> element, e.g., <html lang="en">.',
       canAutoFix:  true,
       autoFixType: 'add-lang',
+      evidence:    '<html> element has no lang attribute',
     });
   } else if (lang && !/^[a-z]{2,3}(-[A-Z]{2,3})?$/i.test(lang)) {
     issues.push({
@@ -592,6 +622,7 @@ function checkLanguage(root) {
       remediation: 'Use a valid BCP 47 language tag such as "en", "en-US", "fr", "es".',
       canAutoFix:  true,
       autoFixType: 'fix-lang',
+      evidence:    `<html lang="${lang}"> — invalid BCP 47 language tag`,
     });
   }
   return issues;
@@ -614,6 +645,7 @@ function checkPageTitle() {
       description: 'The page has no <title> element. Screen reader users rely on the page title to identify the page.',
       remediation: 'Add a descriptive <title> element inside <head>.',
       canAutoFix:  false,
+      evidence:    '<title> element is missing or empty',
     });
   }
   return issues;
@@ -638,6 +670,7 @@ function checkTabindex(root) {
         remediation: 'Use tabindex="0" to include the element in the natural tab order or tabindex="-1" to allow programmatic focus only.',
         canAutoFix:  true,
         autoFixType: 'fix-tabindex',
+        evidence:    getEvidenceSnippet(el),
       });
     }
   });
@@ -664,6 +697,7 @@ function checkAria(root) {
         description: 'An element with aria-hidden="true" contains focusable elements. Keyboard users can reach these elements, but screen readers will not announce them.',
         remediation: 'Remove aria-hidden="true" from this container or remove the focusable elements from inside it.',
         canAutoFix:  false,
+        evidence:    getEvidenceSnippet(el),
       });
     }
   });
@@ -694,6 +728,7 @@ function checkAria(root) {
           description: `The role "${role}" is not a valid WAI-ARIA role.`,
           remediation: 'Use a valid WAI-ARIA role or remove the role attribute.',
           canAutoFix:  false,
+          evidence:    getEvidenceSnippet(el),
         });
       }
     });
@@ -760,6 +795,7 @@ if (typeof module !== 'undefined' && module.exports) {
     contrastRatio,
     parseColor,
     isAmbiguousLinkText,
+    getEvidenceSnippet,
     SEVERITY,
     WCAG,
   };

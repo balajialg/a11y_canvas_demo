@@ -3,7 +3,7 @@
  */
 
 /* Supported Canvas domains */
-const CANVAS_DOMAINS = ['instructure.com', 'canvas.net', 'canvaslms.com'];
+const CANVAS_DOMAINS = ['instructure.com', 'canvas.net', 'canvaslms.com', 'bcourses.berkeley.edu'];
 
 function isCanvasPage(url) {
   try {
